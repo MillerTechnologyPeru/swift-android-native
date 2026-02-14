@@ -2,7 +2,7 @@ import XCTest
 import AndroidContext
 import SwiftJNI
 #if os(Android)
-import AndroidNDK
+import SkipAndroidNDK
 #endif
 
 @available(iOS, unavailable)

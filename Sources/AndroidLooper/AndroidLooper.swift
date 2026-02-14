@@ -1,9 +1,9 @@
 // Copyright 2025 Skip
 #if os(Android)
 import Android
-import AndroidNDK
+import SkipAndroidNDK
 import AndroidSystem
-import AndroidLogging
+import SkipAndroidLogging
 import ConcurrencyRuntimeC
 import CoreFoundation
 import Dispatch

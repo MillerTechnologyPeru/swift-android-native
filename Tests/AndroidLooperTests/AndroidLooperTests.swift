@@ -1,5 +1,5 @@
 import XCTest
-import AndroidLooper
+import SkipAndroidLooper
 
 @available(iOS 14.0, *)
 class AndroidLooperTests : XCTestCase {

@@ -1,9 +1,9 @@
 // Copyright 2025 Skip
 #if os(Android)
 import Android
-import AndroidNDK
+import SkipAndroidNDK
 #endif
-import AndroidLogging
+import SkipAndroidLogging
 import CoreFoundation
 
 //let logger = Logger(subsystem: "swift.android.native", category: "AndroidChoreographer")

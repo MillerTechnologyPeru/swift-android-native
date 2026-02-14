@@ -7,21 +7,21 @@ let package = Package(
         .library(name: "AndroidNative", targets: ["AndroidNative"]),
         .library(name: "AndroidContext", targets: ["AndroidContext"]),
         .library(name: "AndroidAssetManager", targets: ["AndroidAssetManager"]),
-        .library(name: "AndroidLogging", targets: ["AndroidLogging"]),
-        .library(name: "AndroidLooper", targets: ["AndroidLooper"]),
-        .library(name: "AndroidChoreographer", targets: ["AndroidLooper"]),
+        .library(name: "SkipAndroidLogging", targets: ["SkipAndroidLogging"]),
+        .library(name: "SkipAndroidLooper", targets: ["SkipAndroidLooper"]),
+        .library(name: "AndroidChoreographer", targets: ["AndroidChoreographer"]),
     ],
     dependencies: [
         .package(url: "https://source.skip.tools/swift-jni.git", "0.0.0"..<"2.0.0"),
     ],
     targets: [
-        .target(name: "AndroidNDK", linkerSettings: [
+        .target(name: "SkipAndroidNDK", path: "Sources/AndroidNDK", linkerSettings: [
             .linkedLibrary("android", .when(platforms: [.android])),
             .linkedLibrary("log", .when(platforms: [.android])),
         ]),
         .target(name: "ConcurrencyRuntimeC"),
         .target(name: "AndroidSystem", dependencies: [
-            .target(name: "AndroidNDK", condition: .when(platforms: [.android]))
+            .target(name: "SkipAndroidNDK", condition: .when(platforms: [.android]))
         ], swiftSettings: [
             .define("SYSTEM_PACKAGE_DARWIN", .when(platforms: [.macOS, .macCatalyst, .iOS, .watchOS, .tvOS, .visionOS])),
             .define("SYSTEM_PACKAGE"),
@@ -31,43 +31,43 @@ let package = Package(
         ]),
         .target(name: "AndroidAssetManager", dependencies: [
             .product(name: "SwiftJNI", package: "swift-jni"),
-            .target(name: "AndroidNDK", condition: .when(platforms: [.android])),
+            .target(name: "SkipAndroidNDK", condition: .when(platforms: [.android])),
         ]),
         .testTarget(name: "AndroidAssetManagerTests", dependencies: [
             "AndroidAssetManager",
         ]),
-        .target(name: "AndroidLogging", dependencies: [
-            .target(name: "AndroidNDK", condition: .when(platforms: [.android])),
-        ]),
+        .target(name: "SkipAndroidLogging", dependencies: [
+            .target(name: "SkipAndroidNDK", condition: .when(platforms: [.android])),
+        ], path: "Sources/AndroidLogging"),
         .testTarget(name: "AndroidLoggingTests", dependencies: [
-            "AndroidLogging",
+            "SkipAndroidLogging",
         ]),
         .target(name: "AndroidContext", dependencies: [
             "AndroidAssetManager",
-            .target(name: "AndroidNDK", condition: .when(platforms: [.android])),
+            .target(name: "SkipAndroidNDK", condition: .when(platforms: [.android])),
         ]),
         .testTarget(name: "AndroidContextTests", dependencies: [
             "AndroidContext",
         ]),
-        .target(name: "AndroidLooper", dependencies: [
+        .target(name: "SkipAndroidLooper", dependencies: [
             "AndroidSystem",
-            "AndroidLogging",
+            "SkipAndroidLogging",
             "ConcurrencyRuntimeC",
-        ]),
+        ], path: "Sources/AndroidLooper"),
         .testTarget(name: "AndroidLooperTests", dependencies: [
-            "AndroidLooper",
+            "SkipAndroidLooper",
         ]),
         .target(name: "AndroidChoreographer", dependencies: [
             "AndroidSystem",
-            "AndroidLogging",
+            "SkipAndroidLogging",
         ]),
         .testTarget(name: "AndroidChoreographerTests", dependencies: [
             "AndroidChoreographer",
         ]),
         .target(name: "AndroidNative", dependencies: [
             "AndroidContext",
-            "AndroidLogging",
-            "AndroidLooper",
+            "SkipAndroidLogging",
+            "SkipAndroidLooper",
             "AndroidChoreographer",
         ]),
         .testTarget(name: "AndroidNativeTests", dependencies: [

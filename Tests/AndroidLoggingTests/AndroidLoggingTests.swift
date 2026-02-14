@@ -1,5 +1,5 @@
 import XCTest
-import AndroidLogging // note: on non-android platforms, this will just export the system OSLog
+import SkipAndroidLogging // note: on non-android platforms, this will just export the system OSLog
 
 @available(iOS 14.0, *)
 class AndroidLoggingTests : XCTestCase {
