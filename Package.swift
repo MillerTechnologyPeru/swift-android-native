@@ -60,6 +60,9 @@ let package = Package(
         .library(name: "AndroidFileManager", type: libraryType, targets: ["AndroidFileManager"]),
         .library(name: "AndroidLogging", type: libraryType, targets: ["AndroidLogging"]),
         .library(name: "AndroidLooper", type: libraryType, targets: ["AndroidLooper"]),
+        // Compatibility aliases for dependents that import the Skip-prefixed module names.
+        .library(name: "SkipAndroidLogging", type: libraryType, targets: ["SkipAndroidLogging"]),
+        .library(name: "SkipAndroidLooper", type: libraryType, targets: ["SkipAndroidLooper"]),
         .library(name: "AndroidChoreographer", type: libraryType, targets: ["AndroidChoreographer"]),
         .library(name: "AndroidManifest", type: libraryType, targets: ["AndroidManifest"]),
         .library(name: "AndroidInput", type: libraryType, targets: ["AndroidInput"]),
@@ -151,6 +154,18 @@ let package = Package(
             swiftSettings: [
                 ndkVersionDefine,
                 sdkVersionDefine,
+            ]),
+        // Thin re-export modules so both `AndroidLogging`/`AndroidLooper` (upstream names) and
+        // `SkipAndroidLogging`/`SkipAndroidLooper` (used by skip-android-bridge) are importable.
+        .target(
+            name: "SkipAndroidLogging",
+            dependencies: [
+                "AndroidLogging"
+            ]),
+        .target(
+            name: "SkipAndroidLooper",
+            dependencies: [
+                "AndroidLooper"
             ]),
         .testTarget(
             name: "AndroidLooperTests",

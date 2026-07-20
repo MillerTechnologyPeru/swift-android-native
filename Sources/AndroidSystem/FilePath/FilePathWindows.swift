@@ -338,10 +338,10 @@ extension SystemString {
               UNC-volume: server `\` share
             DOS: fully-qualified or legacy-device or drive or `\`
               full-qualified: drive `\`
-        
+
          TODO: What is \\?\server1\e:\utilities\\filecomparer\ from the docs?
          TODO: What about admin use of `$` instead of `:`? E.g. \\system07\C$\
-        
+
          NOTE: Legacy devices are not handled by System at a library level, but
          are deferred to the relevant syscalls.
         */
