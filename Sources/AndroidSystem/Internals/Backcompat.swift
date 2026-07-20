@@ -1,3 +1,17 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the SwiftAndroidNative open source project
+//
+// Copyright (c) 2024-2026 Skip.dev and SwiftAndroidNative project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of SwiftAndroidNative project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+
 /*
  This source file is part of the Swift System open source project
 
@@ -8,22 +22,22 @@
 */
 
 extension String {
-  internal init(
-    _unsafeUninitializedCapacity capacity: Int,
-    initializingUTF8With body: (UnsafeMutableBufferPointer<UInt8>) throws -> Int
-  ) rethrows {
-    if #available(macOS 11, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      self = try String(
-        unsafeUninitializedCapacity: capacity,
-        initializingUTF8With: body)
-      return
-    }
+    internal init(
+        _unsafeUninitializedCapacity capacity: Int,
+        initializingUTF8With body: (UnsafeMutableBufferPointer<UInt8>) throws -> Int
+    ) rethrows {
+        if #available(macOS 11, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+            self = try String(
+                unsafeUninitializedCapacity: capacity,
+                initializingUTF8With: body)
+            return
+        }
 
-    let array = try Array<UInt8>(
-      unsafeUninitializedCapacity: capacity
-    ) { buffer, count in
-      count = try body(buffer)
+        let array = try Array<UInt8>(
+            unsafeUninitializedCapacity: capacity
+        ) { buffer, count in
+            count = try body(buffer)
+        }
+        self = String(decoding: array, as: UTF8.self)
     }
-    self = String(decoding: array, as: UTF8.self)
-  }
 }

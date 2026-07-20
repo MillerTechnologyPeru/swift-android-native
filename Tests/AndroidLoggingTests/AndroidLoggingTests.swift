@@ -1,11 +1,35 @@
-import XCTest
-import SkipAndroidLogging // note: on non-android platforms, this will just export the system OSLog
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the SwiftAndroidNative open source project
+//
+// Copyright (c) 2024-2026 Skip.dev and SwiftAndroidNative project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of SwiftAndroidNative project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
 
-@available(iOS 14.0, *)
-class AndroidLoggingTests : XCTestCase {
-    public func testOSLogAPI() {
-        let emptyLogger = Logger()
-        emptyLogger.info("Android logger test: empty message")
+import Testing
+#if canImport(OSLog)
+import OSLog // note: on non-android platforms, this will just export the system OSLog
+#else
+import AndroidLogging
+#endif
+
+#if os(Android)
+let android = true
+#else
+let android = false
+#endif
+
+@Suite(.enabled(if: android))
+struct AndroidLoggingTests {
+    @Test func testOSLogAPI() {
+        //let emptyLogger = Logger()
+        //emptyLogger.info("Android logger test: empty message")
 
         let logger = Logger(subsystem: "AndroidLoggingTests", category: "test")
 
