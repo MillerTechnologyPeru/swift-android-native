@@ -1,3 +1,16 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the SwiftAndroidNative open source project
+//
+// Copyright (c) 2024-2026 Skip.dev and SwiftAndroidNative project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of SwiftAndroidNative project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
 
 #if canImport(os)
 import os
@@ -14,64 +27,65 @@ import Musl
 import WinSDK
 #endif
 
-public struct LockedState<State> {
+package struct LockedState<State> {
+
     // Internal implementation for a cheap lock to aid sharing code across platforms
     private struct _Lock {
-#if canImport(os)
+        #if canImport(os)
         typealias Primitive = os_unfair_lock
-#elseif canImport(Bionic) || canImport(Glibc) || canImport(Musl)
+        #elseif canImport(Bionic) || canImport(Glibc) || canImport(Musl)
         typealias Primitive = pthread_mutex_t
-#elseif canImport(WinSDK)
+        #elseif canImport(WinSDK)
         typealias Primitive = SRWLOCK
-#elseif os(WASI)
+        #elseif os(WASI)
         // WASI is single-threaded, so we don't need a lock.
-        typealias Primitive = ()
-#endif
+        typealias Primitive = Void
+        #endif
 
         typealias PlatformLock = UnsafeMutablePointer<Primitive>
         var _platformLock: PlatformLock
 
         fileprivate static func initialize(_ platformLock: PlatformLock) {
-#if canImport(os)
+            #if canImport(os)
             platformLock.initialize(to: os_unfair_lock())
-#elseif canImport(Bionic) || canImport(Glibc)
+            #elseif canImport(Bionic) || canImport(Glibc)
             pthread_mutex_init(platformLock, nil)
-#elseif canImport(WinSDK)
+            #elseif canImport(WinSDK)
             InitializeSRWLock(platformLock)
-#elseif os(WASI)
+            #elseif os(WASI)
             // no-op
-#endif
+            #endif
         }
 
         fileprivate static func deinitialize(_ platformLock: PlatformLock) {
-#if canImport(Bionic) || canImport(Glibc)
+            #if canImport(Bionic) || canImport(Glibc)
             pthread_mutex_destroy(platformLock)
-#endif
+            #endif
             platformLock.deinitialize(count: 1)
         }
 
-        fileprivate static func lock(_ platformLock: PlatformLock) {
-#if canImport(os)
+        static fileprivate func lock(_ platformLock: PlatformLock) {
+            #if canImport(os)
             os_unfair_lock_lock(platformLock)
-#elseif canImport(Bionic) || canImport(Glibc)
+            #elseif canImport(Bionic) || canImport(Glibc)
             pthread_mutex_lock(platformLock)
-#elseif canImport(WinSDK)
+            #elseif canImport(WinSDK)
             AcquireSRWLockExclusive(platformLock)
-#elseif os(WASI)
+            #elseif os(WASI)
             // no-op
-#endif
+            #endif
         }
 
-        fileprivate static func unlock(_ platformLock: PlatformLock) {
-#if canImport(os)
+        static fileprivate func unlock(_ platformLock: PlatformLock) {
+            #if canImport(os)
             os_unfair_lock_unlock(platformLock)
-#elseif canImport(Bionic) || canImport(Glibc)
+            #elseif canImport(Bionic) || canImport(Glibc)
             pthread_mutex_unlock(platformLock)
-#elseif canImport(WinSDK)
+            #elseif canImport(WinSDK)
             ReleaseSRWLockExclusive(platformLock)
-#elseif os(WASI)
+            #elseif os(WASI)
             // no-op
-#endif
+            #endif
         }
     }
 
@@ -85,59 +99,58 @@ public struct LockedState<State> {
 
     private let _buffer: ManagedBuffer<State, _Lock.Primitive>
 
-    public init(initialState: State) {
-        _buffer = _Buffer.create(minimumCapacity: 1, makingHeaderWith: { buf in
-            buf.withUnsafeMutablePointerToElements {
-                _Lock.initialize($0)
+    package init(initialState: State) {
+        _buffer = _Buffer.create(
+            minimumCapacity: 1,
+            makingHeaderWith: { buf in
+                buf.withUnsafeMutablePointerToElements {
+                    _Lock.initialize($0)
+                }
+                return initialState
             }
-            return initialState
-        })
+        )
     }
 
-    public func withLock<T>(_ body: @Sendable (inout State) throws -> T) rethrows -> T {
+    package func withLock<T, E: Error>(_ body: @Sendable (inout State) throws(E) -> T) throws(E) -> T {
         try withLockUnchecked(body)
     }
 
-    public func withLockUnchecked<T>(_ body: (inout State) throws -> T) rethrows -> T {
-        try _buffer.withUnsafeMutablePointers { state, lock in
-            _Lock.lock(lock)
-            defer { _Lock.unlock(lock) }
-            return try body(&state.pointee)
-        }
+    package func withLockUnchecked<T, E: Error>(_ body: (inout State) throws(E) -> T) throws(E) -> T {
+        _buffer.withUnsafeMutablePointerToElements { _Lock.lock($0) }
+        defer { _buffer.withUnsafeMutablePointerToElements { _Lock.unlock($0) } }
+        return try body(&_buffer.header)
     }
 
     // Ensures the managed state outlives the locked scope.
-    public func withLockExtendingLifetimeOfState<T>(_ body: @Sendable (inout State) throws -> T) rethrows
-    -> T
-    {
-        try _buffer.withUnsafeMutablePointers { state, lock in
-            _Lock.lock(lock)
-            return try withExtendedLifetime(state.pointee) {
-                defer { _Lock.unlock(lock) }
-                return try body(&state.pointee)
-            }
+    package func withLockExtendingLifetimeOfState<T, E: Error>(_ body: @Sendable (inout State) throws(E) -> T) throws(E) -> T {
+        _buffer.withUnsafeMutablePointerToElements { _Lock.lock($0) }
+        defer { _buffer.withUnsafeMutablePointerToElements { _Lock.unlock($0) } }
+        do {
+            return try body(&_buffer.header)
+        } catch {
+            throw error
         }
     }
 }
 
-public extension LockedState where State == () {
-    init() {
+extension LockedState where State == Void {
+    package init() {
         self.init(initialState: ())
     }
 
-    func withLock<R: Sendable>(_ body: @Sendable () throws -> R) rethrows -> R {
-        try withLock { _ in
-            try body()
-        }
+    package func withLock<R: Sendable, E: Error>(_ body: @Sendable () throws(E) -> R) throws(E) -> R {
+        _buffer.withUnsafeMutablePointerToElements { _Lock.lock($0) }
+        defer { _buffer.withUnsafeMutablePointerToElements { _Lock.unlock($0) } }
+        return try body()
     }
 
-    func lock() {
+    package func lock() {
         _buffer.withUnsafeMutablePointerToElements { lock in
             _Lock.lock(lock)
         }
     }
 
-    func unlock() {
+    package func unlock() {
         _buffer.withUnsafeMutablePointerToElements { lock in
             _Lock.unlock(lock)
         }

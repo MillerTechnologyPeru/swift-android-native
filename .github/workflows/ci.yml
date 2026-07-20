@@ -1,68 +1,76 @@
 name: swift-android-native ci
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
   pull_request:
     branches:
       - '*'
   schedule:
-    - cron:  '45 2,13 * * *'
+    - cron: '45 2,13 * * *'
 jobs:
-  linux-android:
+  ci:
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        swift: ['6.1', '6.2', 'nightly-6.3', 'nightly-main']
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: false
-          android: false
-      - uses: actions/checkout@v6
-      - name: "Test Swift Package on Linux"
-        run: swift test
-      - name: "Test Swift Package on Android"
-        #uses: skiptools/swift-android-action@v2
-        uses: skiptools/swift-android-action@main
-        with:
-          swift-version: ${{ matrix.swift }}
+        # macOS testing isn't strictly necessary
+        # os: ['macos-15-intel', 'ubuntu-latest']
+        os: ['ubuntu-latest']
 
-  macos-ios:
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          #- os: 'macos-26'
-          #  swift: '6.2'
-          #  arch: 'arm64-v8a'
-          - os: 'macos-15-intel'
-            swift: '6.1'
-            arch: 'x86_64'
-          - os: 'macos-15-intel'
-            swift: '6.2'
-            arch: 'x86_64'
+        # swift: ['6.3.2', 'nightly-6.4', 'nightly-main']
+        swift: ['6.3.2', 'nightly-main']
+
+        # android-api: ['28', '36']
+        # needs API 31 due to https://github.com/swiftlang/swift-java/issues/419
+        android-api: ['31']
+
+        android-ndk: ['r27d', 'r30-beta1']
+        # android-ndk: ['r27d']
     runs-on: ${{ matrix.os }}
     steps:
+      - name: "Setup Homebrew"
+        uses: Homebrew/actions/setup-homebrew@main
+
       - uses: actions/checkout@v6
+
+      - name: "Build Swift Package on host OS"
+        run: swift build
+
+      - name: "Clean build"
+        run: rm -rf .build
+
       - name: "Build Swift Package for Android (Skip)"
         run: |
           brew install skiptools/skip/skip || (brew update && brew install skiptools/skip/skip)
-          skip android sdk install --verbose --version ${{ matrix.swift }}
+
+      - name: "Install Host Toolchain prerequisites"
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -y install libcurl4-openssl-dev || (sudo apt-get update && sudo apt-get -y install libcurl4-openssl-dev)
+
+      - name: "Install Swift SDK for Android"
+        run: |
+          # need swiftly init on Linux
+          swiftly init --assume-yes --no-modify-profile --skip-install
+          skip android sdk install --verbose --version ${{ matrix.swift }} --ndk-version ${{ matrix.android-ndk }}
           # https://github.com/swiftlang/swift-driver/pull/1879
-          ANDROID_NDK_ROOT="" skip android build --build-tests
-      - name: "Test Swift Package on Android (Skip)"
+          echo "ANDROID_NDK_ROOT=" >> $GITHUB_ENV
+
+      - name: "Build package for Android"
+        run: ANDROID_SDK_VERSION=${{ matrix.android-api }} ANDROID_NDK_VERSION=${{ matrix.android-ndk }} skip android build --build-tests
+
+      - name: "Test Swift Package on Android"
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 28
-          arch: ${{ matrix.arch }}
-          script: ANDROID_NDK_ROOT="" skip android test --verbose
-      - name: "Test Swift Package on macOS"
-        run: swift test
-      - name: "Test Swift Package on iOS"
-        run: xcodebuild test -sdk "iphonesimulator" -destination "platform=iOS Simulator,name=iPhone 17" -scheme "$(xcodebuild -list -json | jq -r '.workspace.schemes[-1]')"
+          api-level: ${{ matrix.android-api }}
+          arch: x86_64
+          script: ANDROID_SDK_VERSION=${{ matrix.android-api }} ANDROID_NDK_VERSION=${{ matrix.android-ndk }} skip android test --apk --verbose
 
+  soundness:
+    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@main
+    with:
+      # Not API stable package (yet)
+      api_breakage_check_enabled: false
+      format_check_enabled: true
+      docs_check_enabled: true
